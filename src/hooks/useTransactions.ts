@@ -7,6 +7,8 @@ import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { getCached, setCached } from "@/lib/queryCache";
 import type { TransactionWithRelations, TransactionFormData } from "@/lib/types";
 
+const EMPTY_TRANSACTIONS: TransactionWithRelations[] = [];
+
 interface UseTransactionsOptions {
   limit?: number;
   walletId?: string;
@@ -20,27 +22,30 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
   const { userId } = useAuth();
   // Cache key mencakup semua filter agar tiap kombinasi punya entri sendiri
   const cacheKey = `transactions:${userId}:${options.limit ?? ""}:${options.walletId ?? ""}:${options.type ?? ""}:${options.startDate ?? ""}:${options.endDate ?? ""}:${options.sourceId ?? ""}`;
-  // Stale-while-revalidate: tampilkan data cache dulu, revalidasi di belakang
-  const [transactions, setTransactions] = useState<TransactionWithRelations[]>(
-    () => getCached<TransactionWithRelations[]>(cacheKey) ?? []
-  );
-  const [loading, setLoading] = useState(() => !getCached(cacheKey));
+  // Hasil fetch disimpan bersama key-nya; nilai yang ditampilkan diturunkan
+  // saat render (stale-while-revalidate): hasil fetch untuk key aktif →
+  // fallback cache → []. Tidak perlu setState sinkron saat filter berubah.
+  const [result, setResult] = useState<{
+    key: string;
+    data: TransactionWithRelations[];
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const transactions = useMemo(
+    () =>
+      result?.key === cacheKey
+        ? result.data
+        : getCached<TransactionWithRelations[]>(cacheKey) ?? EMPTY_TRANSACTIONS,
+    [result, cacheKey]
+  );
+  // Skeleton hanya saat kombinasi filter ini belum pernah diambil sama sekali
+  const loading =
+    result?.key !== cacheKey && !getCached(cacheKey) && !error;
 
   const fetchTransactions = useCallback(async () => {
     if (!userId) return;
 
     try {
-      // Saat filter berubah, pakai cache untuk filter tsb bila ada;
-      // skeleton hanya muncul saat datanya benar-benar belum pernah diambil
-      const cached = getCached<TransactionWithRelations[]>(cacheKey);
-      if (cached) {
-        setTransactions(cached);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
-
       // Selective columns — only fetch what we actually display
       let query = supabase
         .from("transactions")
@@ -79,18 +84,19 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
       const { data, error: err } = await query;
 
       if (err) throw err;
-      const result = (data as unknown as TransactionWithRelations[]) || [];
-      setTransactions(result);
-      setCached(cacheKey, result);
+      const rows = (data as unknown as TransactionWithRelations[]) || [];
+      setResult({ key: cacheKey, data: rows });
+      setCached(cacheKey, rows);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat transaksi");
-    } finally {
-      setLoading(false);
     }
   }, [userId, cacheKey, options.limit, options.walletId, options.type, options.startDate, options.endDate, options.sourceId]);
 
   useEffect(() => {
+    // Fetch-on-mount sah untuk data layer client-only; semua setState di
+    // dalamnya terjadi setelah await, bukan sinkron (rule ini konservatif).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchTransactions();
   }, [fetchTransactions]);
 
@@ -130,7 +136,7 @@ export function useTransactions(options: UseTransactionsOptions = {}) {
 
     // Optimistic: remove from local state immediately (+ sinkron ke cache)
     const next = transactions.filter((t) => t.id !== id);
-    setTransactions(next);
+    setResult({ key: cacheKey, data: next });
     setCached(cacheKey, next);
 
     skipNextChange();

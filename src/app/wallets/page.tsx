@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Wallet, ArrowLeftRight } from "lucide-react";
+import { Plus, Wallet, ArrowLeftRight, Eye, EyeOff } from "lucide-react";
 import { useWallets } from "@/hooks/useWallets";
+import { useBalanceVisibility } from "@/hooks/useBalanceVisibility";
 import WalletCard from "@/components/wallets/WalletCard";
 import WalletForm from "@/components/wallets/WalletForm";
 import TransferForm from "@/components/wallets/TransferForm";
@@ -25,6 +26,7 @@ export default function WalletsPage() {
     refetch,
   } = useWallets();
   const { showToast } = useToast();
+  const { hidden: hideBalance, toggle: toggleBalance } = useBalanceVisibility();
   const [showForm, setShowForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
@@ -126,27 +128,41 @@ export default function WalletsPage() {
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-accent-blue/20 flex items-center justify-center">
           <Wallet size={22} className="text-accent" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs text-muted">Total Saldo Semua Dompet</p>
           <p className="text-2xl font-bold gradient-text">
-            {loading ? "..." : formatRupiah(totalBalance)}
+            {loading ? "..." : hideBalance ? "Rp ••••••••" : formatRupiah(totalBalance)}
           </p>
         </div>
+        <button
+          onClick={toggleBalance}
+          className="eye-toggle ml-auto shrink-0"
+          style={{ width: 34, height: 34, borderRadius: 10 }}
+          aria-label={hideBalance ? "Tampilkan saldo" : "Sembunyikan saldo"}
+          aria-pressed={hideBalance}
+          id="toggle-balance-visibility-wallets"
+        >
+          {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
       </div>
 
       {/* Wallet Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="glass-card p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="skeleton w-12 h-12 rounded-xl" />
-                <div>
-                  <div className="skeleton h-4 w-20 mb-1" />
-                  <div className="skeleton h-3 w-14" />
-                </div>
+            <div
+              key={i}
+              className="glass-card flex flex-col justify-between p-5"
+              style={{ minHeight: 190, borderRadius: 22 }}
+            >
+              <div className="flex items-start justify-between">
+                <div className="skeleton h-7 w-10 rounded-lg" />
+                <div className="skeleton h-8 w-16 rounded-lg" />
               </div>
-              <div className="skeleton h-6 w-28" />
+              <div>
+                <div className="skeleton h-4 w-24 mb-2 rounded" />
+                <div className="skeleton h-6 w-32 rounded" />
+              </div>
             </div>
           ))}
         </div>
@@ -191,6 +207,7 @@ export default function WalletsPage() {
       {/* Wallet Form Modal */}
       {showForm && (
         <WalletForm
+          key={editingWallet?.id ?? "new"}
           wallet={editingWallet}
           onSubmit={handleSubmit}
           onClose={handleCloseForm}

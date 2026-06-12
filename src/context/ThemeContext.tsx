@@ -1,8 +1,35 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
 type Theme = "dark" | "light";
+
+// Sumber kebenaran tema adalah class di <html> — sudah di-set sebelum paint
+// oleh inline script di layout.tsx. useSyncExternalStore membaca langsung dari
+// sana: tanpa setState-in-effect, tanpa render ganda, dan hydration aman
+// karena server selalu memakai snapshot "dark".
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): Theme {
+  return document.documentElement.classList.contains("light") ? "light" : "dark";
+}
+
+function getServerSnapshot(): Theme {
+  return "dark";
+}
 
 interface ThemeContextValue {
   theme: Theme;
@@ -15,39 +42,20 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  useEffect(() => {
-    // Class tema sudah di-set oleh inline script di <head> sebelum paint
-    // (lihat layout.tsx) — di sini cukup sinkronkan state React dengannya.
-    setTheme(
-      document.documentElement.classList.contains("light") ? "light" : "dark"
-    );
+  const toggleTheme = useCallback(() => {
+    const next: Theme = getSnapshot() === "dark" ? "light" : "dark";
+    const html = document.documentElement;
+    html.classList.remove("light", "dark");
+    html.classList.add(next);
+    localStorage.setItem("theme", next);
+    listeners.forEach((listener) => listener());
   }, []);
 
-  const applyTheme = (t: Theme) => {
-    const html = document.documentElement;
-    if (t === "light") {
-      html.classList.add("light");
-      html.classList.remove("dark");
-    } else {
-      html.classList.add("dark");
-      html.classList.remove("light");
-    }
-  };
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme]);
 
-  const toggleTheme = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
-    localStorage.setItem("theme", next);
-  };
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

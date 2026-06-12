@@ -1,7 +1,8 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, Eye, EyeOff } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
+import { useBalanceVisibility } from "@/hooks/useBalanceVisibility";
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useEffect } from "react";
 
@@ -22,7 +23,6 @@ interface BalanceCardProps {
   totalIncome: number;
   totalExpense: number;
   loading?: boolean;
-  monthName?: string;
   activeSourceName?: string;
 }
 
@@ -31,10 +31,9 @@ export default function BalanceCard({
   totalIncome,
   totalExpense,
   loading,
-  monthName,
   activeSourceName,
 }: BalanceCardProps) {
-  const displayMonth = monthName || "Bulan Ini";
+  const { hidden: hideBalance, toggle: toggleBalance } = useBalanceVisibility();
   const savingsRate =
     totalIncome > 0
       ? Math.max(0, ((totalIncome - totalExpense) / totalIncome) * 100)
@@ -60,27 +59,39 @@ export default function BalanceCard({
         <div className="flex items-center gap-2">
           <div
             className="icon-badge icon-badge-sm"
-            style={{ background: "rgba(16,185,129,0.15)" }}
+            style={{ background: "var(--accent-primary-dim)" }}
           >
-            <Wallet size={16} style={{ color: "var(--accent-emerald)" }} />
+            <Wallet size={16} style={{ color: "var(--accent-primary)" }} />
           </div>
           <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
             Total Saldo — Semua Dompet
           </span>
         </div>
-        {savingsRate > 0 && (
-          <div
-            className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
-            style={{
-              background: "rgba(16,185,129,0.12)",
-              color: "var(--accent-emerald)",
-              border: "1px solid rgba(16,185,129,0.2)",
-            }}
+        <div className="flex items-center gap-1.5">
+          {savingsRate > 0 && (
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
+              style={{
+                background: "var(--accent-primary-dim)",
+                color: "var(--accent-primary)",
+                border: "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)",
+              }}
+            >
+              <ArrowUpRight size={11} />
+              {savingsRate.toFixed(0)}% ditabung
+            </div>
+          )}
+          <button
+            onClick={toggleBalance}
+            className="eye-toggle"
+            style={{ width: 30, height: 30, borderRadius: 9 }}
+            aria-label={hideBalance ? "Tampilkan saldo" : "Sembunyikan saldo"}
+            aria-pressed={hideBalance}
+            id="toggle-balance-visibility"
           >
-            <ArrowUpRight size={11} />
-            {savingsRate.toFixed(0)}% ditabung
-          </div>
-        )}
+            {hideBalance ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
       </div>
 
       {/* Balance number */}
@@ -96,7 +107,11 @@ export default function BalanceCard({
           zIndex: 2,
         }}
       >
-        <AnimatedCounter value={totalBalance} />
+        {hideBalance ? (
+          <span aria-label="Saldo disembunyikan">Rp ••••••••</span>
+        ) : (
+          <AnimatedCounter value={totalBalance} />
+        )}
       </motion.h2>
 
       {/* Stats row */}
@@ -116,7 +131,7 @@ export default function BalanceCard({
         >
           <div
             className="icon-badge icon-badge-sm shrink-0"
-            style={{ background: "rgba(16,185,129,0.18)" }}
+            style={{ background: "color-mix(in srgb, var(--color-income) 18%, transparent)" }}
           >
             <TrendingUp size={14} style={{ color: "var(--color-income)" }} />
           </div>
@@ -142,7 +157,7 @@ export default function BalanceCard({
         >
           <div
             className="icon-badge icon-badge-sm shrink-0"
-            style={{ background: "rgba(244,63,94,0.18)" }}
+            style={{ background: "color-mix(in srgb, var(--color-expense) 18%, transparent)" }}
           >
             <TrendingDown size={14} style={{ color: "var(--color-expense)" }} />
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { 
   Plus, 
   Trash2, 
@@ -9,6 +9,7 @@ import {
   FileText 
 } from "lucide-react";
 import { useInvestments } from "@/hooks/useInvestments";
+import { useHydrated } from "@/hooks/useHydrated";
 import { formatRupiah } from "@/lib/utils";
 import type { Investment, InvestmentType } from "@/lib/types";
 import InvestmentForm from "@/components/investments/InvestmentForm";
@@ -45,11 +46,8 @@ const TYPE_COLORS: Record<InvestmentType, string> = {
 export default function InvestmentsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Investment | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  // Chart hanya dirender setelah hydration (recharts mengukur DOM)
+  const isMounted = useHydrated();
 
   const {
     investments,
@@ -311,6 +309,7 @@ export default function InvestmentsPage() {
       {/* Modal Edit Aset */}
       {editingAsset && (
         <InvestmentForm
+          key={editingAsset.id}
           investment={editingAsset}
           onSubmit={handleUpdateInvestmentAsset}
           onClose={() => setEditingAsset(null)}

@@ -31,7 +31,7 @@ export default function EditProfileModal({ user, onClose }: EditProfileModalProp
 
     try {
       setLoading(true);
-      const updates: any = {
+      const updates: { data: { display_name: string }; password?: string } = {
         data: { display_name: displayName.trim() }
       };
 

@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
 import type { Wallet, Category, Source } from "@/lib/types";
 import { ChevronLeft, ChevronRight, TrendingUp, TrendingDown, LayoutGrid } from "lucide-react";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -114,9 +113,9 @@ export default function TransactionFilter({
             onClick={() => onTypeChange("")}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all"
             style={{
-              background: !type ? "var(--accent-emerald-dim)" : "var(--glass-bg)",
-              color: !type ? "var(--accent-emerald)" : "var(--text-secondary)",
-              borderColor: !type ? "rgba(16,185,129,0.3)" : "var(--glass-border)",
+              background: !type ? "var(--accent-primary-dim)" : "var(--glass-bg)",
+              color: !type ? "var(--accent-primary)" : "var(--text-secondary)",
+              borderColor: !type ? "color-mix(in srgb, var(--accent-primary) 32%, transparent)" : "var(--glass-border)",
             }}
           >
             <LayoutGrid size={12} />
@@ -128,7 +127,7 @@ export default function TransactionFilter({
             style={{
               background: type === "income" ? "var(--color-income-dim)" : "var(--glass-bg)",
               color: type === "income" ? "var(--color-income)" : "var(--text-secondary)",
-              borderColor: type === "income" ? "rgba(16,185,129,0.3)" : "var(--glass-border)",
+              borderColor: type === "income" ? "color-mix(in srgb, var(--color-income) 32%, transparent)" : "var(--glass-border)",
             }}
           >
             <TrendingUp size={12} />

@@ -24,8 +24,6 @@ export function useInvestments() {
     if (!userId) return;
 
     try {
-      if (!getCached(cacheKey)) setLoading(true);
-
       const { data: invData, error: invErr } = await supabase
         .from("investments")
         .select("*")
@@ -44,6 +42,9 @@ export function useInvestments() {
   }, [userId, cacheKey]);
 
   useEffect(() => {
+    // Fetch-on-mount sah untuk data layer client-only; semua setState di
+    // dalamnya terjadi setelah await, bukan sinkron (rule ini konservatif).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchInvestmentsData();
 
     if (!userId) return;

@@ -38,7 +38,9 @@ export function useRealtimeSubscription({
   const skipRef = useRef(false);
   // Stable ref untuk callback agar tidak perlu re-subscribe setiap render
   const onChangedRef = useRef(onChanged);
-  onChangedRef.current = onChanged;
+  useEffect(() => {
+    onChangedRef.current = onChanged;
+  }, [onChanged]);
 
   const skipNextChange = () => {
     skipRef.current = true;
@@ -75,7 +77,6 @@ export function useRealtimeSubscription({
       if (timerRef.current) clearTimeout(timerRef.current);
       supabase.removeChannel(channel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, filter, debounceMs, enabled]);
 
   return { skipNextChange };

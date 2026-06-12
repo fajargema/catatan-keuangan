@@ -92,16 +92,16 @@ export default function Sidebar() {
                 width: 40,
                 height: 40,
                 borderRadius: 12,
-                background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))",
+                background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))",
               }}
             >
-              <Wallet size={19} color="#fff" />
+              <Wallet size={19} color="var(--on-accent)" />
             </div>
             <div>
               <h1
                 className="text-sm font-bold"
                 style={{
-                  background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))",
+                  background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
@@ -188,9 +188,9 @@ export default function Sidebar() {
                     width: 34,
                     height: 34,
                     borderRadius: "50%",
-                    background: "var(--accent-emerald-dim)",
-                    border: "1px solid rgba(16,185,129,0.3)",
-                    color: "var(--accent-emerald)",
+                    background: "var(--accent-primary-dim)",
+                    border: "1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent)",
+                    color: "var(--accent-primary)",
                   }}
                 >
                   {(user.user_metadata?.display_name?.[0] || user.email?.[0] || "?").toUpperCase()}

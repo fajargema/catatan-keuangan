@@ -10,11 +10,8 @@ interface RecentTransactionsProps {
   loading?: boolean;
 }
 
-export default function RecentTransactions({
-  transactions,
-  loading,
-}: RecentTransactionsProps) {
-  const Header = () => (
+function Header() {
+  return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
         <div
@@ -38,7 +35,12 @@ export default function RecentTransactions({
       </Link>
     </div>
   );
+}
 
+export default function RecentTransactions({
+  transactions,
+  loading,
+}: RecentTransactionsProps) {
   if (loading) {
     return (
       <div className="animate-fade-in delay-3">

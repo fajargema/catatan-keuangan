@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Plus, Search, X, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, X, SlidersHorizontal, TrendingUp, TrendingDown } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useWallets } from "@/hooks/useWallets";
@@ -46,6 +46,10 @@ export default function TransactionsPage() {
   const { wallets } = useWallets();
   const { categories } = useCategories();
   const { sources } = useSources();
+
+  // Saat mencari, lepas batasan bulan agar pencarian menjangkau semua transaksi
+  const isSearching = searchQuery.trim().length > 0;
+
   const {
     transactions,
     loading,
@@ -60,9 +64,26 @@ export default function TransactionsPage() {
     walletId: filterWalletId || undefined,
     type: filterType || undefined,
     sourceId: filterSourceId || undefined,
-    startDate,
-    endDate,
+    startDate: isSearching ? undefined : startDate,
+    endDate: isSearching ? undefined : endDate,
   });
+
+  // Kartu ringkasan tetap menampilkan total bulan terpilih meski data
+  // sedang mencakup semua bulan karena pencarian aktif
+  const { monthlyIncome, monthlyExpense } = useMemo(() => {
+    if (!isSearching) {
+      return { monthlyIncome: totalIncome, monthlyExpense: totalExpense };
+    }
+    const inMonth = transactions.filter((t) => t.date.slice(0, 7) === selectedMonth);
+    return {
+      monthlyIncome: inMonth
+        .filter((t) => t.type === "income" && !t.is_transfer)
+        .reduce((sum, t) => sum + t.amount, 0),
+      monthlyExpense: inMonth
+        .filter((t) => t.type === "expense" && !t.is_transfer)
+        .reduce((sum, t) => sum + t.amount, 0),
+    };
+  }, [isSearching, transactions, totalIncome, totalExpense, selectedMonth]);
 
   // Client-side category filter + search
   const filteredTransactions = useMemo(() => {
@@ -146,24 +167,40 @@ export default function TransactionsPage() {
       {/* ── Summary Cards ──────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 animate-fade-in">
         {/* Income */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] sm:text-xs text-muted mb-1.5 font-medium uppercase tracking-wide">
-            Pemasukan
-          </p>
-          <p className="text-sm sm:text-lg font-bold text-income leading-tight">
-            {formatRupiah(totalIncome)}
-          </p>
-          <p className="text-[10px] text-muted mt-0.5 truncate">{displayMonthName}</p>
+        <div className="glass-card p-4 flex items-start gap-3">
+          <div
+            className="icon-badge icon-badge-sm shrink-0"
+            style={{ background: "var(--color-income-dim)" }}
+          >
+            <TrendingUp size={15} style={{ color: "var(--color-income)" }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs text-muted mb-1 font-medium uppercase tracking-wide">
+              Pemasukan
+            </p>
+            <p className="text-sm sm:text-lg font-bold text-income leading-tight tabular-nums">
+              {formatRupiah(monthlyIncome)}
+            </p>
+            <p className="text-[10px] text-muted mt-0.5 truncate">{displayMonthName}</p>
+          </div>
         </div>
         {/* Expense */}
-        <div className="glass-card p-4">
-          <p className="text-[10px] sm:text-xs text-muted mb-1.5 font-medium uppercase tracking-wide">
-            Pengeluaran
-          </p>
-          <p className="text-sm sm:text-lg font-bold text-expense leading-tight">
-            {formatRupiah(totalExpense)}
-          </p>
-          <p className="text-[10px] text-muted mt-0.5 truncate">{displayMonthName}</p>
+        <div className="glass-card p-4 flex items-start gap-3">
+          <div
+            className="icon-badge icon-badge-sm shrink-0"
+            style={{ background: "var(--color-expense-dim)" }}
+          >
+            <TrendingDown size={15} style={{ color: "var(--color-expense)" }} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs text-muted mb-1 font-medium uppercase tracking-wide">
+              Pengeluaran
+            </p>
+            <p className="text-sm sm:text-lg font-bold text-expense leading-tight tabular-nums">
+              {formatRupiah(monthlyExpense)}
+            </p>
+            <p className="text-[10px] text-muted mt-0.5 truncate">{displayMonthName}</p>
+          </div>
         </div>
       </div>
 
@@ -173,13 +210,14 @@ export default function TransactionsPage() {
       {/* ── Search + Filter Toggle ──────────────────── */}
       <div className="flex gap-2 animate-fade-in">
         {/* Search */}
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-2xl flex-1 transition-all duration-200 bg-card border border-card-border">
+        <div className="search-box flex items-center gap-2 px-3 py-2.5 rounded-2xl flex-1 bg-card border border-card-border">
           <Search size={15} className="text-tertiary shrink-0" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari transaksi..."
+            aria-label="Cari transaksi"
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-tertiary text-foreground min-w-0"
             id="search-transactions"
           />
@@ -197,13 +235,13 @@ export default function TransactionsPage() {
         {/* Filter toggle button (mobile-friendly) */}
         <button
           onClick={() => setShowFilter((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-medium transition-all shrink-0"
+          className="focus-ring flex items-center gap-1.5 px-3 py-2.5 rounded-2xl text-sm font-medium transition-all shrink-0"
           style={{
             background: showFilter || activeFilterCount > 0
-              ? "var(--accent-emerald-dim)"
+              ? "var(--accent-primary-dim)"
               : "var(--glass-bg)",
-            border: `1px solid ${showFilter || activeFilterCount > 0 ? "rgba(16,185,129,0.3)" : "var(--glass-border)"}`,
-            color: showFilter || activeFilterCount > 0 ? "var(--accent-emerald)" : "var(--text-secondary)",
+            border: `1px solid ${showFilter || activeFilterCount > 0 ? "color-mix(in srgb, var(--accent-primary) 32%, transparent)" : "var(--glass-border)"}`,
+            color: showFilter || activeFilterCount > 0 ? "var(--accent-primary)" : "var(--text-secondary)",
           }}
           aria-label="Toggle filter"
           aria-expanded={showFilter}
@@ -214,7 +252,7 @@ export default function TransactionsPage() {
           {activeFilterCount > 0 && (
             <span
               className="flex items-center justify-center text-[10px] font-bold w-4 h-4 rounded-full"
-              style={{ background: "var(--accent-emerald)", color: "#fff" }}
+              style={{ background: "var(--accent-primary)", color: "var(--on-accent)" }}
             >
               {activeFilterCount}
             </span>
@@ -226,8 +264,8 @@ export default function TransactionsPage() {
       {searchQuery.trim() && !loading && (
         <p className="text-xs px-1 font-medium -mt-2 text-tertiary">
           {filteredTransactions.length === 0
-            ? `Tidak ada hasil untuk "${searchQuery}"`
-            : `${filteredTransactions.length} transaksi ditemukan`}
+            ? `Tidak ada hasil untuk "${searchQuery}" di semua bulan`
+            : `${filteredTransactions.length} transaksi ditemukan di semua bulan`}
         </p>
       )}
 

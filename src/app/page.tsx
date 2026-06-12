@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus } from "lucide-react";
+import { Plus, Globe } from "lucide-react";
 import BalanceCard from "@/components/dashboard/BalanceCard";
 import WalletSummary from "@/components/dashboard/WalletSummary";
 import SourceBreakdown from "@/components/dashboard/SourceBreakdown";
@@ -65,7 +65,7 @@ export default function DashboardPage() {
     try {
       await addTransaction(data);
       await refetchWallets();
-      showToast("Transaksi berhasil ditambahkan! ✓", "success");
+      showToast("Transaksi berhasil ditambahkan!", "success");
     } catch {
       showToast("Gagal menambahkan transaksi. Coba lagi.", "error");
       throw new Error("Gagal menambahkan transaksi");
@@ -109,11 +109,12 @@ export default function DashboardPage() {
           <button
             onClick={() => setActiveSourceId("")}
             aria-pressed={activeSourceId === ""}
-            className={`relative px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 border ${
+            className={`focus-ring relative px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 border ${
               activeSourceId === ""
-                ? "text-white border-transparent bg-transparent"
+                ? "border-transparent bg-transparent"
                 : "text-muted border-card-border bg-card"
             }`}
+            style={activeSourceId === "" ? { color: "var(--on-accent)" } : undefined}
           >
             {activeSourceId === "" && (
               <motion.div
@@ -123,7 +124,7 @@ export default function DashboardPage() {
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
               />
             )}
-            <span className="relative z-10">🌐</span>
+            <Globe size={13} className="relative z-10" />
             <span className="relative z-10">Semua Sumber</span>
           </button>
           
@@ -134,7 +135,7 @@ export default function DashboardPage() {
                 key={s.id}
                 onClick={() => setActiveSourceId(s.id)}
                 aria-pressed={isActive}
-                className={`relative px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 border ${
+                className={`focus-ring relative px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 border ${
                   isActive
                     ? "border-transparent bg-transparent"
                     : "text-muted border-card-border bg-card"
@@ -165,7 +166,6 @@ export default function DashboardPage() {
             totalIncome={monthlyIncome}
             totalExpense={monthlyExpense}
             loading={walletsLoading || monthlyLoading}
-            monthName={currentMonthName}
             activeSourceName={activeSource?.name}
           />
 

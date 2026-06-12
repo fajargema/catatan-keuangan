@@ -135,6 +135,7 @@ export default function SourcesPage() {
       {/* Source Form Modal */}
       {showForm && (
         <SourceForm
+          key={editingSource?.id ?? "new"}
           source={editingSource}
           onSubmit={handleSubmit}
           onClose={handleCloseForm}

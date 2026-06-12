@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { Check, X, Info } from "lucide-react";
 
 type ToastType = "success" | "error" | "info";
 
@@ -65,28 +66,28 @@ function ToastItem({
   toast: Toast;
   onDismiss: (id: string) => void;
 }) {
-  const icons: Record<ToastType, string> = {
-    success: "✓",
-    error: "✕",
-    info: "ℹ",
+  const icons: Record<ToastType, ReactNode> = {
+    success: <Check size={15} strokeWidth={3} />,
+    error: <X size={15} strokeWidth={3} />,
+    info: <Info size={15} strokeWidth={2.5} />,
   };
 
   const colors: Record<ToastType, { bg: string; border: string; icon: string; text: string }> = {
     success: {
-      bg: "rgba(16, 185, 129, 0.12)",
-      border: "rgba(16, 185, 129, 0.3)",
-      icon: "var(--accent-emerald)",
-      text: "var(--accent-emerald)",
+      bg: "color-mix(in srgb, var(--color-income) 12%, transparent)",
+      border: "color-mix(in srgb, var(--color-income) 30%, transparent)",
+      icon: "var(--color-income)",
+      text: "var(--color-income)",
     },
     error: {
-      bg: "rgba(244, 63, 94, 0.12)",
-      border: "rgba(244, 63, 94, 0.3)",
+      bg: "color-mix(in srgb, var(--color-expense) 12%, transparent)",
+      border: "color-mix(in srgb, var(--color-expense) 30%, transparent)",
       icon: "var(--color-expense)",
       text: "var(--color-expense)",
     },
     info: {
-      bg: "rgba(59, 130, 246, 0.12)",
-      border: "rgba(59, 130, 246, 0.3)",
+      bg: "color-mix(in srgb, var(--accent-blue) 12%, transparent)",
+      border: "color-mix(in srgb, var(--accent-blue) 30%, transparent)",
       icon: "var(--accent-blue)",
       text: "var(--accent-blue)",
     },
@@ -151,15 +152,16 @@ function ToastItem({
           border: "none",
           cursor: "pointer",
           color: "var(--text-tertiary)",
-          fontSize: 14,
-          lineHeight: 1,
-          padding: "2px 4px",
-          borderRadius: 4,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 4,
+          borderRadius: 6,
           flexShrink: 0,
         }}
         aria-label="Tutup notifikasi"
       >
-        ✕
+        <X size={14} />
       </button>
     </div>
   );

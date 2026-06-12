@@ -127,18 +127,18 @@ export default function AuthScreen() {
           <div
             style={{
               width: 56, height: 56, borderRadius: 16,
-              background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))",
+              background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))",
               display: "flex", alignItems: "center", justifyContent: "center",
               marginBottom: 14,
               boxShadow: "0 8px 24px rgba(16,185,129,0.3)",
             }}
           >
-            <Wallet size={26} color="#fff" />
+            <Wallet size={26} color="var(--on-accent)" />
           </div>
           <h1
             style={{
               fontSize: "1.35rem", fontWeight: 700, letterSpacing: "-0.01em",
-              background: "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan), var(--accent-indigo))",
+              background: "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan), var(--accent-indigo))",
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}
           >
@@ -161,7 +161,7 @@ export default function AuthScreen() {
                   color: "var(--text-secondary)",
                 }}
               >
-                <Icon size={11} style={{ color: "var(--accent-emerald)" }} />
+                <Icon size={11} style={{ color: "var(--accent-primary)" }} />
                 {label}
               </div>
             ))}
@@ -182,7 +182,7 @@ export default function AuthScreen() {
                 className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
                 style={{
                   background: active
-                    ? "linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))"
+                    ? "linear-gradient(135deg, var(--accent-primary), var(--accent-cyan))"
                     : "transparent",
                   color: active ? "#fff" : "var(--text-secondary)",
                   border: "none",
@@ -216,7 +216,7 @@ export default function AuthScreen() {
             className="mb-4 px-4 py-3 rounded-xl text-sm"
             style={{
               background: "var(--color-income-dim)",
-              border: "1px solid rgba(16,185,129,0.2)",
+              border: "1px solid color-mix(in srgb, var(--color-income) 22%, transparent)",
               color: "var(--color-income)",
             }}
           >

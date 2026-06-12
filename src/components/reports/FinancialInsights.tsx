@@ -61,9 +61,9 @@ export default function FinancialInsights({ transactions, loading }: FinancialIn
     } else if (savingsRate >= 30) {
       healthStatus = "excellent";
       healthLabel = "Sangat Sehat";
-      healthColor = "var(--accent-emerald)";
-      healthBg = "var(--accent-emerald-dim)";
-      healthBorder = "rgba(16, 185, 129, 0.25)";
+      healthColor = "var(--color-income)";
+      healthBg = "var(--color-income-dim)";
+      healthBorder = "color-mix(in srgb, var(--color-income) 25%, transparent)";
       healthText = `Luar biasa! Rasio tabungan Anda ${savingsRate.toFixed(0)}%, di atas batas ideal 30%. Pertahankan disiplin keuangan Anda!`;
     } else if (savingsRate >= 10) {
       healthStatus = "good";
@@ -86,16 +86,16 @@ export default function FinancialInsights({ transactions, loading }: FinancialIn
         expenseCategories[cat.name].total += t.amount;
       });
 
-    let topCategory = null;
+    let topCategory: { name: string; icon: string; color: string } | null = null;
     let topCategoryTotal = 0;
     let topCategoryPct = 0;
 
-    Object.entries(expenseCategories).forEach(([name, data]) => {
+    for (const [name, data] of Object.entries(expenseCategories)) {
       if (data.total > topCategoryTotal) {
         topCategoryTotal = data.total;
         topCategory = { name, ...data };
       }
-    });
+    }
 
     if (topCategory && totalExpense > 0) {
       topCategoryPct = (topCategoryTotal / totalExpense) * 100;
@@ -171,12 +171,12 @@ export default function FinancialInsights({ transactions, loading }: FinancialIn
       healthText,
       healthStatus,
       topCategory: topCategory ? {
-        name: (topCategory as any).name,
-        icon: (topCategory as any).icon,
-        color: (topCategory as any).color,
+        name: topCategory.name,
+        icon: topCategory.icon,
+        color: topCategory.color,
         total: topCategoryTotal,
         pct: topCategoryPct,
-        tip: getCategoryTip((topCategory as any).name),
+        tip: getCategoryTip(topCategory.name),
       } : null,
       trendText,
       trendDirection,
@@ -344,7 +344,7 @@ export default function FinancialInsights({ transactions, loading }: FinancialIn
                   style={{
                     backgroundColor: insights.trendDirection === "up" ? "var(--color-expense-dim)" : "var(--color-income-dim)",
                     color: insights.trendDirection === "up" ? "var(--color-expense)" : "var(--color-income)",
-                    border: insights.trendDirection === "up" ? "1px solid rgba(244,63,94,0.2)" : "1px solid rgba(16,185,129,0.2)"
+                    border: insights.trendDirection === "up" ? "1px solid color-mix(in srgb, var(--color-expense) 22%, transparent)" : "1px solid color-mix(in srgb, var(--color-income) 22%, transparent)"
                   }}
                 >
                   {insights.trendDirection === "up" ? "+" : "-"}{insights.trendPct.toFixed(0)}%

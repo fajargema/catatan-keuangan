@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useRealtimeSubscription } from "@/hooks/useRealtimeSubscription";
 import { getCached, setCached } from "@/lib/queryCache";
+import { normalizeWalletColor } from "@/lib/utils";
 import type { Wallet, WalletFormData } from "@/lib/types";
 
 export function useWallets() {
@@ -20,10 +21,10 @@ export function useWallets() {
   const fetchWallets = useCallback(async () => {
     if (!userId) return;
 
+    // Skeleton hanya saat belum ada data sama sekali — sudah ditangani oleh
+    // initializer state `loading`; cache bertahan sepanjang sesi sehingga
+    // refetch berikutnya selalu revalidasi diam-diam tanpa kedip.
     try {
-      // Skeleton hanya saat belum ada data sama sekali (hindari kedip saat refetch)
-      if (!getCached(cacheKey)) setLoading(true);
-
       const { data, error: err } = await supabase
         .from("wallets")
         .select("*")
@@ -31,8 +32,12 @@ export function useWallets() {
         .order("created_at", { ascending: true });
 
       if (err) throw err;
-      setWallets(data || []);
-      setCached(cacheKey, data || []);
+      const normalized = (data || []).map((w: Wallet) => ({
+        ...w,
+        color: normalizeWalletColor(w.color),
+      }));
+      setWallets(normalized);
+      setCached(cacheKey, normalized);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat dompet");
@@ -42,6 +47,9 @@ export function useWallets() {
   }, [userId, cacheKey]);
 
   useEffect(() => {
+    // Fetch-on-mount sah untuk data layer client-only; semua setState di
+    // dalamnya terjadi setelah await, bukan sinkron (rule ini konservatif).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchWallets();
   }, [fetchWallets]);
 

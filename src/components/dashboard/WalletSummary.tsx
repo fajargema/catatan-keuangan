@@ -1,6 +1,7 @@
 "use client";
 
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, WALLET_CARD_GRADIENT, WALLET_CARD_SHADOW } from "@/lib/utils";
+import { useBalanceVisibility } from "@/hooks/useBalanceVisibility";
 import type { Wallet } from "@/lib/types";
 
 interface WalletSummaryProps {
@@ -9,6 +10,7 @@ interface WalletSummaryProps {
 }
 
 export default function WalletSummary({ wallets, loading }: WalletSummaryProps) {
+  const { hidden: hideBalance } = useBalanceVisibility();
   if (loading) {
     return (
       <div className="animate-fade-in delay-2">
@@ -51,52 +53,71 @@ export default function WalletSummary({ wallets, loading }: WalletSummaryProps) 
           return (
             <div
               key={wallet.id}
-              className={`glass-card p-5 animate-fade-in delay-${Math.min(index + 1, 6)} cursor-default`}
+              className={`relative flex flex-col overflow-hidden animate-fade-in delay-${Math.min(index + 1, 6)} cursor-default`}
+              style={{
+                minHeight: 116,
+                borderRadius: 16,
+                background: WALLET_CARD_GRADIENT,
+                border: "1px solid rgba(255,255,255,0.18)",
+                boxShadow: WALLET_CARD_SHADOW,
+              }}
             >
+              {/* Sheen diagonal glossy */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute"
+                  style={{
+                    top: "-30%",
+                    left: "-15%",
+                    width: "60%",
+                    height: "180%",
+                    background:
+                      "linear-gradient(100deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 55%, transparent 100%)",
+                    transform: "skewX(-18deg)",
+                  }}
+                />
+              </div>
+
               {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="icon-badge icon-badge-sm"
-                    style={{ background: wallet.color + "18" }}
-                  >
-                    <span style={{ fontSize: "1rem" }}>{wallet.icon}</span>
-                  </div>
+              <div className="relative flex items-center justify-between gap-2 px-4 pt-3">
+                <div className="flex min-w-0 items-center gap-2">
                   <span
-                    className="text-sm font-semibold"
-                    style={{ color: "var(--text-primary)" }}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs"
+                    style={{ background: "rgba(255,255,255,0.22)" }}
                   >
+                    {wallet.icon}
+                  </span>
+                  <span className="truncate text-sm font-bold text-white">
                     {wallet.name}
                   </span>
                 </div>
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    background: wallet.color + "18",
-                    color: wallet.color,
-                    fontSize: "0.68rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Dompet
+                <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                  {isPositive ? "Dompet" : "Negatif"}
                 </span>
               </div>
 
-              {/* Balance */}
-              <p
-                className="text-xl font-bold"
-                style={{ color: isPositive ? wallet.color : "var(--color-expense)" }}
-              >
-                {isPositive ? "" : "-"}{formatRupiah(Math.abs(wallet.balance))}
-              </p>
-
-              {/* Color bar */}
+              {/* Band saldo + lingkaran overlap ala logo kartu */}
               <div
-                className="mt-4 h-0.5 rounded-full"
-                style={{
-                  background: `linear-gradient(90deg, ${wallet.color}60, ${wallet.color}18)`,
-                }}
-              />
+                className="relative mt-auto flex items-center justify-between gap-2 px-4 py-2.5"
+                style={{ background: "rgba(255,255,255,0.10)" }}
+              >
+                <p
+                  className="truncate text-base font-bold text-white tabular-nums"
+                  style={{ letterSpacing: "0.05em", textShadow: "0 1px 8px rgba(0,0,0,0.2)" }}
+                >
+                  {hideBalance ? (
+                    <span aria-label="Saldo disembunyikan">Rp ••••••••</span>
+                  ) : (
+                    <>
+                      {isPositive ? "" : "−"}{formatRupiah(Math.abs(wallet.balance))}
+                    </>
+                  )}
+                </p>
+                <div aria-hidden className="flex shrink-0 items-center">
+                  <span className="h-5 w-5 rounded-full bg-white/45" />
+                  <span className="-ml-2 h-5 w-5 rounded-full bg-white/25" />
+                </div>
+              </div>
             </div>
           );
         })}

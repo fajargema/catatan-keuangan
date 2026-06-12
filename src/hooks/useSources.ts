@@ -21,8 +21,6 @@ export function useSources() {
     if (!userId) return;
 
     try {
-      if (!getCached(cacheKey)) setLoading(true);
-
       // Fetch global seeds (user_id is null) + user-owned sources
       const { data, error: err } = await supabase
         .from("sources")
@@ -42,6 +40,9 @@ export function useSources() {
   }, [userId, cacheKey]);
 
   useEffect(() => {
+    // Fetch-on-mount sah untuk data layer client-only; semua setState di
+    // dalamnya terjadi setelah await, bukan sinkron (rule ini konservatif).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSources();
   }, [fetchSources]);
 

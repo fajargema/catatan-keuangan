@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { formatRupiahInput } from "@/lib/utils";
+import { formatRupiahInput, getErrorMessage } from "@/lib/utils";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Investment, InvestmentType } from "@/lib/types";
 
@@ -27,23 +27,16 @@ const INVESTMENT_TYPES: { value: InvestmentType; label: string; icon: string }[]
 ];
 
 export default function InvestmentForm({ investment, onSubmit, onClose }: InvestmentFormProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<InvestmentType>("saham");
-  const [currentVal, setCurrentVal] = useState("");
-  const [notes, setNotes] = useState("");
-  
+  // Pre-fill saat edit — form selalu di-mount ulang per aset (lihat key di call site)
+  const [name, setName] = useState(investment?.name ?? "");
+  const [type, setType] = useState<InvestmentType>(investment?.type ?? "saham");
+  const [currentVal, setCurrentVal] = useState(
+    investment ? investment.current_val.toLocaleString("id-ID") : ""
+  );
+  const [notes, setNotes] = useState(investment?.notes ?? "");
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Pre-fill form if editing
-  useEffect(() => {
-    if (investment) {
-      setName(investment.name);
-      setType(investment.type);
-      setCurrentVal(investment.current_val.toLocaleString("id-ID"));
-      setNotes(investment.notes || "");
-    }
-  }, [investment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +60,7 @@ export default function InvestmentForm({ investment, onSubmit, onClose }: Invest
       
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as any)?.message || "Gagal menyimpan investasi");
+      setError(getErrorMessage(err, "Gagal menyimpan investasi"));
     } finally {
       setSubmitting(false);
     }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { WALLET_COLORS } from "@/lib/utils";
+import { WALLET_COLORS, getErrorMessage } from "@/lib/utils";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Source, SourceFormData } from "@/lib/types";
 
@@ -24,14 +24,6 @@ export default function SourceForm({ source, onSubmit, onClose }: SourceFormProp
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (source) {
-      setName(source.name);
-      setIcon(source.icon);
-      setColor(source.color);
-    }
-  }, [source]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -45,7 +37,7 @@ export default function SourceForm({ source, onSubmit, onClose }: SourceFormProp
       await onSubmit({ name: name.trim(), icon, color });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as any)?.message || "Gagal menyimpan");
+      setError(getErrorMessage(err, "Gagal menyimpan"));
     } finally {
       setSubmitting(false);
     }

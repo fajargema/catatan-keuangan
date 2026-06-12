@@ -24,16 +24,20 @@ export default function TransactionList({
 }: TransactionListProps) {
   const { showToast } = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const deletingTransaction = transactions.find((t) => t.id === deletingId);
 
-  // Reset visible count when transactions change (e.g. filter changed)
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [transactions.length]);
+  // Pagination diturunkan saat render: count hanya berlaku untuk panjang
+  // daftar saat "Muat lebih banyak" ditekan, sehingga otomatis kembali ke
+  // halaman pertama begitu daftar berubah (filter/pencarian) tanpa effect.
+  const [expanded, setExpanded] = useState<{
+    listLength: number;
+    count: number;
+  } | null>(null);
+  const visibleCount =
+    expanded?.listLength === transactions.length ? expanded.count : PAGE_SIZE;
 
   // Scroll-to-top visibility
   useEffect(() => {
@@ -49,7 +53,10 @@ export default function TransactionList({
   };
 
   const handleLoadMore = () => {
-    setVisibleCount((prev) => prev + PAGE_SIZE);
+    setExpanded({
+      listLength: transactions.length,
+      count: visibleCount + PAGE_SIZE,
+    });
   };
 
   if (loading) {
@@ -252,7 +259,7 @@ export default function TransactionList({
                             height: 26,
                             borderRadius: 7,
                             color: "var(--color-income)",
-                            borderColor: "rgba(16,185,129,0.18)",
+                            borderColor: "color-mix(in srgb, var(--color-income) 20%, transparent)",
                           }}
                           aria-label="Edit transaksi"
                           title="Edit"

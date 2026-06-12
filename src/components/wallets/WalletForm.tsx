@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { WALLET_ICONS, WALLET_COLORS, formatRupiahInput } from "@/lib/utils";
+import { WALLET_ICONS, WALLET_COLORS, formatRupiahInput, getErrorMessage } from "@/lib/utils";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Wallet, WalletFormData } from "@/lib/types";
 
@@ -15,18 +15,10 @@ interface WalletFormProps {
 export default function WalletForm({ wallet, onSubmit, onClose }: WalletFormProps) {
   const [name, setName] = useState(wallet?.name || "");
   const [icon, setIcon] = useState(wallet?.icon || "💰");
-  const [color, setColor] = useState(wallet?.color || "#10b981");
+  const [color, setColor] = useState(wallet?.color || "#60a5fa");
   const [balance, setBalance] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (wallet) {
-      setName(wallet.name);
-      setIcon(wallet.icon);
-      setColor(wallet.color);
-    }
-  }, [wallet]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +41,7 @@ export default function WalletForm({ wallet, onSubmit, onClose }: WalletFormProp
       await onSubmit(submitData);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as any)?.message || "Gagal menyimpan");
+      setError(getErrorMessage(err, "Gagal menyimpan"));
     } finally {
       setSubmitting(false);
     }

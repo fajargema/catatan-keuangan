@@ -82,7 +82,7 @@ export default function CustomSelect({
                 "flex items-center justify-between w-full px-4 py-2.5 text-sm text-left hover:bg-accent/8 hover:text-accent transition-all text-foreground",
                 !value && "text-accent font-semibold"
               )}
-              style={{ color: !value ? "var(--accent-emerald)" : "var(--text-primary)" }}
+              style={{ color: !value ? "var(--accent-primary)" : "var(--text-primary)" }}
             >
               <span>{placeholder}</span>
               {!value && <Check size={14} />}
@@ -109,7 +109,7 @@ export default function CustomSelect({
                 )}
                 style={{
                   color: isSelected
-                    ? "var(--accent-emerald)"
+                    ? "var(--accent-primary)"
                     : isDisabled
                     ? "var(--text-tertiary)"
                     : "var(--text-primary)",

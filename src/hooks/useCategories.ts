@@ -20,8 +20,6 @@ export function useCategories() {
     if (!userId) return;
 
     try {
-      if (!getCached(cacheKey)) setLoading(true);
-
       const { data, error: err } = await supabase
         .from("categories")
         .select("*")
@@ -40,6 +38,9 @@ export function useCategories() {
   }, [userId, cacheKey]);
 
   useEffect(() => {
+    // Fetch-on-mount sah untuk data layer client-only; semua setState di
+    // dalamnya terjadi setelah await, bukan sinkron (rule ini konservatif).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCategories();
   }, [fetchCategories]);
 

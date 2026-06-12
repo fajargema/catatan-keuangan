@@ -147,7 +147,7 @@ export default function TransferForm({
 
               {/* Arrow */}
               <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                style={{ background: "var(--accent-primary-dim)", border: "1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent)" }}>
                 <ArrowRight size={16} className="text-accent" />
               </div>
 
@@ -223,7 +223,7 @@ export default function TransferForm({
           {/* Preview */}
           {fromWallet && toWallet && numericAmount > 0 && (
             <div className="p-3 rounded-xl text-xs space-y-1"
-              style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.1)" }}>
+              style={{ background: "color-mix(in srgb, var(--accent-primary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary) 14%, transparent)" }}>
               <p className="text-muted font-medium mb-2">Preview Transfer</p>
               <div className="flex justify-between">
                 <span className="text-muted">{fromWallet.icon} {fromWallet.name} (setelah)</span>

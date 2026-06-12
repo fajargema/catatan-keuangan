@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { X, TrendingUp, TrendingDown } from "lucide-react";
-import { getToday, formatRupiahInput } from "@/lib/utils";
+import { getToday, formatRupiahInput, getErrorMessage } from "@/lib/utils";
 import { useEscapeKey } from "@/hooks/useEscapeKey";
 import type { Category, Wallet, Source, TransactionFormData, TransactionWithRelations } from "@/lib/types";
 import CustomSelect from "@/components/ui/CustomSelect";
@@ -88,7 +88,7 @@ export default function TransactionForm({
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as any)?.message || "Gagal menyimpan");
+      setError(getErrorMessage(err, "Gagal menyimpan"));
     } finally {
       setSubmitting(false);
     }
@@ -202,7 +202,7 @@ export default function TransactionForm({
                 <div
                   className="icon-badge icon-badge-sm shrink-0"
                   style={{
-                    background: type === "income" ? "rgba(16,185,129,0.18)" : "var(--glass-bg-hover)",
+                    background: type === "income" ? "color-mix(in srgb, var(--color-income) 18%, transparent)" : "var(--glass-bg-hover)",
                   }}
                 >
                   <TrendingUp size={16} style={{ color: "var(--color-income)" }} />

@@ -31,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <ErrorBoundary>
         <Sidebar />
-        <main className="lg:ml-64 min-h-screen pb-16 lg:pb-0">
+        <main className="lg:ml-64 min-h-screen pb-28 lg:pb-0">
           <div className="p-4 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto">
             {children}
           </div>

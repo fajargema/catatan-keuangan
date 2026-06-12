@@ -36,14 +36,19 @@ export default function CustomDatePicker({
     return new Date(y, m - 1, d);
   }, [value]);
 
-  const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth());
-
-  // Reset calendar view when input value changes externally (e.g. form reset or open)
-  useEffect(() => {
-    setCurrentYear(initialDate.getFullYear());
-    setCurrentMonth(initialDate.getMonth());
-  }, [initialDate, isOpen]);
+  // Bulan yang ditampilkan kalender diturunkan saat render: override navigasi
+  // hanya berlaku untuk kombinasi value+sesi-buka saat ini, sehingga tampilan
+  // otomatis kembali ke bulan tanggal terpilih saat value berubah dari luar
+  // atau picker dibuka ulang — tanpa effect.
+  const viewKey = `${value}|${isOpen}`;
+  const [viewOverride, setViewOverride] = useState<{
+    key: string;
+    year: number;
+    month: number;
+  } | null>(null);
+  const isOverrideActive = viewOverride?.key === viewKey;
+  const currentYear = isOverrideActive ? viewOverride.year : initialDate.getFullYear();
+  const currentMonth = isOverrideActive ? viewOverride.month : initialDate.getMonth();
 
   // Click outside to close calendar
   useEffect(() => {
@@ -128,21 +133,19 @@ export default function CustomDatePicker({
   }, [currentYear, currentMonth, value]);
 
   const handlePrevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    setViewOverride({
+      key: viewKey,
+      year: currentMonth === 0 ? currentYear - 1 : currentYear,
+      month: currentMonth === 0 ? 11 : currentMonth - 1,
+    });
   };
 
   const handleNextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    setViewOverride({
+      key: viewKey,
+      year: currentMonth === 11 ? currentYear + 1 : currentYear,
+      month: currentMonth === 11 ? 0 : currentMonth + 1,
+    });
   };
 
   const handleSelectDate = (dateStr: string) => {
@@ -217,19 +220,19 @@ export default function CustomDatePicker({
                   "h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer",
                   !cell.isCurrentMonth && "opacity-30",
                   cell.isCurrentMonth && "text-[var(--text-primary)]",
-                  cell.isSelected && "!bg-accent !text-white hover:!bg-accent shadow-sm",
+                  cell.isSelected && "shadow-sm",
                   !cell.isSelected && "hover:bg-accent/10 hover:text-accent",
                   cell.isToday && !cell.isSelected && "border border-accent"
                 )}
                 style={
                   cell.isSelected
                     ? {
-                        background: "var(--accent-emerald)",
-                        color: "white",
+                        background: "var(--accent-primary)",
+                        color: "var(--on-accent)",
                       }
                     : cell.isToday
                     ? {
-                        borderColor: "var(--accent-emerald)",
+                        borderColor: "var(--accent-primary)",
                       }
                     : {}
                 }
