@@ -54,8 +54,6 @@ export default function TransactionsPage() {
     transactions,
     loading,
     error,
-    totalIncome,
-    totalExpense,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -67,23 +65,6 @@ export default function TransactionsPage() {
     startDate: isSearching ? undefined : startDate,
     endDate: isSearching ? undefined : endDate,
   });
-
-  // Kartu ringkasan tetap menampilkan total bulan terpilih meski data
-  // sedang mencakup semua bulan karena pencarian aktif
-  const { monthlyIncome, monthlyExpense } = useMemo(() => {
-    if (!isSearching) {
-      return { monthlyIncome: totalIncome, monthlyExpense: totalExpense };
-    }
-    const inMonth = transactions.filter((t) => t.date.slice(0, 7) === selectedMonth);
-    return {
-      monthlyIncome: inMonth
-        .filter((t) => t.type === "income" && !t.is_transfer)
-        .reduce((sum, t) => sum + t.amount, 0),
-      monthlyExpense: inMonth
-        .filter((t) => t.type === "expense" && !t.is_transfer)
-        .reduce((sum, t) => sum + t.amount, 0),
-    };
-  }, [isSearching, transactions, totalIncome, totalExpense, selectedMonth]);
 
   // Client-side category filter + search
   const filteredTransactions = useMemo(() => {
@@ -109,6 +90,24 @@ export default function TransactionsPage() {
 
     return result;
   }, [transactions, filterCategoryId, searchQuery]);
+
+  // Kartu ringkasan dihitung dari data yang SUDAH difilter (tipe, sumber,
+  // dompet, kategori, pencarian) lalu dibatasi ke bulan terpilih — agar
+  // selalu konsisten dengan daftar di bawahnya. Transfer antar dompet
+  // tidak dihitung sebagai pemasukan/pengeluaran.
+  const { monthlyIncome, monthlyExpense } = useMemo(() => {
+    const inMonth = filteredTransactions.filter(
+      (t) => t.date.slice(0, 7) === selectedMonth
+    );
+    return {
+      monthlyIncome: inMonth
+        .filter((t) => t.type === "income" && !t.is_transfer)
+        .reduce((sum, t) => sum + t.amount, 0),
+      monthlyExpense: inMonth
+        .filter((t) => t.type === "expense" && !t.is_transfer)
+        .reduce((sum, t) => sum + t.amount, 0),
+    };
+  }, [filteredTransactions, selectedMonth]);
 
   // Count active filters
   const activeFilterCount = [filterType, filterWalletId, filterCategoryId, filterSourceId].filter(Boolean).length;

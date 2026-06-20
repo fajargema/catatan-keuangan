@@ -178,7 +178,10 @@ export default function CustomDatePicker({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 bottom-full mb-1.5 w-[280px] sm:w-[290px] rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-xl border border-card-border shadow-lg z-50 p-3 animate-scale-in select-none">
+        <div
+          className="absolute left-0 bottom-full mb-1.5 w-[280px] sm:w-[290px] rounded-xl border border-card-border shadow-lg z-50 p-3 animate-scale-in select-none"
+          style={{ background: "var(--bg-elevated)" }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between mb-2">
             <button

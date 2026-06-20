@@ -69,7 +69,10 @@ export default function CustomSelect({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 w-full rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-xl border border-card-border shadow-lg z-50 py-1 max-h-60 overflow-y-auto animate-scale-in">
+        <div
+          className="absolute left-0 mt-1.5 w-full rounded-xl border border-card-border shadow-lg z-50 py-1 max-h-60 overflow-y-auto animate-scale-in"
+          style={{ background: "var(--bg-elevated)" }}
+        >
           {/* Default/Placeholder Option */}
           {showDefaultOption && (
             <button

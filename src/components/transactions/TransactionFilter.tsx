@@ -75,7 +75,10 @@ export default function TransactionFilter({
   };
 
   return (
-    <div className="glass-card p-4 animate-scale-in space-y-4 relative z-30">
+    <div
+      className="glass-card p-4 animate-scale-in space-y-4 relative"
+      style={{ zIndex: 50 }}
+    >
       {/* ── Row 1: Month + Type ─────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         {/* Month Navigator */}
