@@ -1,31 +1,53 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { format, subMonths } from "date-fns";
+import {
+  format,
+  subMonths,
+  subDays,
+  startOfMonth,
+  differenceInCalendarDays,
+} from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { formatRupiah } from "@/lib/utils";
-import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react";
+import { Download } from "lucide-react";
 import IncomeExpenseChart from "@/components/reports/IncomeExpenseChart";
 import CategoryPieChart from "@/components/reports/CategoryPieChart";
 import MonthlyTrendChart from "@/components/reports/MonthlyTrendChart";
 import FinancialInsights from "@/components/reports/FinancialInsights";
+import QuickStats from "@/components/reports/QuickStats";
+import TopTransactions from "@/components/reports/TopTransactions";
+import PeriodComparison from "@/components/reports/PeriodComparison";
+import DayAnalysis from "@/components/reports/DayAnalysis";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import { exportReportPdf } from "@/lib/exportReportPdf";
 import type {
   MonthlyReport,
   CategoryReport,
+  CategorySourceSlice,
   TransactionWithRelations,
   Source,
 } from "@/lib/types";
 
 /** Agregasi total per kategori untuk satu jenis transaksi, lengkap dengan persentase. */
+const NO_SOURCE_ID = "__none__";
+
+/** Agregasi total per kategori untuk satu jenis transaksi, lengkap dengan
+ * persentase dan rincian per sumber dana di tiap kategori. */
 function groupByCategory(
   transactions: TransactionWithRelations[],
   type: "income" | "expense"
 ): CategoryReport[] {
   const map: Record<
     string,
-    { name: string; icon: string; color: string; total: number }
+    {
+      name: string;
+      icon: string;
+      color: string;
+      total: number;
+      sources: Record<string, CategorySourceSlice>;
+    }
   > = {};
 
   transactions
@@ -38,27 +60,86 @@ function groupByCategory(
           icon: cat.icon,
           color: cat.color,
           total: 0,
+          sources: {},
         };
       }
       map[cat.id].total += t.amount;
+
+      // Rincian per sumber dana
+      const sid = t.source?.id ?? NO_SOURCE_ID;
+      if (!map[cat.id].sources[sid]) {
+        map[cat.id].sources[sid] = t.source
+          ? {
+              name: t.source.name,
+              icon: t.source.icon,
+              color: t.source.color,
+              total: 0,
+            }
+          : { name: "Tanpa Sumber", icon: "❓", color: "#94a3b8", total: 0 };
+      }
+      map[cat.id].sources[sid].total += t.amount;
     });
 
   const items = Object.values(map).sort((a, b) => b.total - a.total);
   const total = items.reduce((s, i) => s + i.total, 0);
   return items.map((item) => ({
-    ...item,
+    name: item.name,
+    icon: item.icon,
+    color: item.color,
+    total: item.total,
     percentage: total > 0 ? (item.total / total) * 100 : 0,
+    sources: Object.values(item.sources).sort((a, b) => b.total - a.total),
   }));
 }
 
+type Period = 3 | 6 | 12 | "current" | "today";
+
+const PERIOD_LABEL: Record<string, string> = {
+  today: "Hari Ini",
+  current: "Bulan Ini",
+  "3": "3 Bulan Terakhir",
+  "6": "6 Bulan Terakhir",
+  "12": "12 Bulan Terakhir",
+};
+
+/** Batas periode terpilih + periode sebelumnya (untuk perbandingan).
+ * Mengembalikan tanggal "yyyy-MM-dd": data periode aktif = [curStart, now],
+ * periode sebelumnya = [prevStart, curStart). */
+function getPeriodBounds(period: Period): { curStart: string; prevStart: string } {
+  const now = new Date();
+  let curStart: Date;
+  let prevStart: Date;
+
+  if (period === "today") {
+    curStart = now;
+    prevStart = subDays(now, 1);
+  } else if (period === "current") {
+    curStart = startOfMonth(now);
+    prevStart = startOfMonth(subMonths(now, 1));
+  } else {
+    curStart = subMonths(now, period);
+    prevStart = subMonths(now, period * 2);
+  }
+
+  return {
+    curStart: format(curStart, "yyyy-MM-dd"),
+    prevStart: format(prevStart, "yyyy-MM-dd"),
+  };
+}
+
 export default function ReportsPage() {
-  const { userId } = useAuth();
-  const [transactions, setTransactions] = useState<TransactionWithRelations[]>([]);
+  const { userId, user } = useAuth();
+  // Menyimpan transaksi sejak awal periode SEBELUMNYA agar bisa dibandingkan.
+  const [allTransactions, setAllTransactions] = useState<
+    TransactionWithRelations[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [months, setMonths] = useState<3 | 6 | 12 | "current">("current");
+  const [months, setMonths] = useState<Period>("current");
   // Naikkan nilai ini untuk memicu ulang fetch (tombol "Coba lagi")
   const [reloadKey, setReloadKey] = useState(0);
+
+  const bounds = useMemo(() => getPeriodBounds(months), [months]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,14 +149,6 @@ export default function ReportsPage() {
       }
 
       setLoading(true);
-
-      let startDate: string;
-      if (months === "current") {
-        const now = new Date();
-        startDate = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
-      } else {
-        startDate = format(subMonths(new Date(), months), "yyyy-MM-dd");
-      }
 
       // Selective columns — only what reports actually use
       const { data, error } = await supabase
@@ -91,11 +164,11 @@ export default function ReportsPage() {
         )
         .eq("user_id", userId)
         .eq("is_transfer", false)
-        .gte("date", startDate)
+        .gte("date", bounds.prevStart)
         .order("date", { ascending: true });
 
       if (!error && data) {
-        setTransactions(data as unknown as TransactionWithRelations[]);
+        setAllTransactions(data as unknown as TransactionWithRelations[]);
         setError(null);
       } else if (error) {
         setError(error.message || "Gagal memuat data laporan");
@@ -104,11 +177,33 @@ export default function ReportsPage() {
     };
 
     fetchData();
-  }, [months, userId, reloadKey]);
+  }, [bounds.prevStart, userId, reloadKey]);
 
-  // Mode "Bulan Ini" hanya punya 1 titik data bulanan — chart jadi tampak
-  // kosong. Gunakan granularitas harian agar tetap informatif.
-  const granularity: "day" | "month" = months === "current" ? "day" : "month";
+  // Pisahkan data periode aktif vs periode sebelumnya berdasarkan tanggal.
+  const transactions = useMemo(
+    () => allTransactions.filter((t) => t.date >= bounds.curStart),
+    [allTransactions, bounds.curStart]
+  );
+  const prevTransactions = useMemo(
+    () =>
+      allTransactions.filter(
+        (t) => t.date >= bounds.prevStart && t.date < bounds.curStart
+      ),
+    [allTransactions, bounds.prevStart, bounds.curStart]
+  );
+
+  // Mode "Hari Ini"/"Bulan Ini" hanya punya sedikit titik data bulanan — chart
+  // jadi tampak kosong. Gunakan granularitas harian agar tetap informatif.
+  const granularity: "day" | "month" =
+    months === "current" || months === "today" ? "day" : "month";
+
+  // Jumlah hari berjalan dalam periode — basis rata-rata pengeluaran/hari.
+  const periodDays = useMemo(() => {
+    const now = new Date();
+    if (months === "today") return 1;
+    if (months === "current") return now.getDate();
+    return differenceInCalendarDays(now, subMonths(now, months)) + 1;
+  }, [months]);
 
   const trendData: MonthlyReport[] = useMemo(() => {
     const map: Record<string, { income: number; expense: number }> = {};
@@ -159,32 +254,61 @@ export default function ReportsPage() {
     );
   }, [transactions]);
 
-  // ✅ Memoized totals — avoid recomputing on every render
-  const totalIncome = useMemo(
-    () => transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-    [transactions]
-  );
-  const totalExpense = useMemo(
-    () => transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-    [transactions]
-  );
-  const netSavings = useMemo(() => totalIncome - totalExpense, [totalIncome, totalExpense]);
+  // Label periode pembanding untuk kartu "Perbandingan Periode".
+  const comparedTo =
+    months === "today"
+      ? "vs kemarin"
+      : months === "current"
+      ? "vs bulan lalu"
+      : `vs ${months} bulan sebelumnya`;
+
+  const handleExport = () => {
+    const meta = user?.user_metadata as { full_name?: string } | undefined;
+    exportReportPdf({
+      periodLabel: PERIOD_LABEL[String(months)],
+      comparedTo,
+      periodDays,
+      transactions,
+      prevTransactions,
+      expenseCategories: expenseCategoryData,
+      incomeCategories: incomeCategoryData,
+      sourceBreakdown,
+      userName: meta?.full_name ?? user?.email ?? undefined,
+    });
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* ── Header ─────────────────────────────────── */}
       <div className="animate-slide-in-right">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold mb-0.5">Report</h1>
             <p className="text-xs sm:text-sm text-muted">Analisis keuangan Anda</p>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={loading || transactions.length === 0}
+            className="export-pdf-btn shrink-0"
+            id="export-pdf-btn"
+          >
+            <Download size={16} />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
         </div>
         {/* Period tabs — scrollable on mobile */}
         <div
-          className="flex gap-2 overflow-x-auto pb-1"
+          className="no-print flex gap-2 overflow-x-auto pb-1"
           style={{ scrollbarWidth: "none" }}
         >
+          <button
+            key="today"
+            onClick={() => setMonths("today")}
+            aria-pressed={months === "today"}
+            className={`tab-btn shrink-0 ${months === "today" ? "active" : ""}`}
+          >
+            Hari Ini
+          </button>
           <button
             key="current"
             onClick={() => setMonths("current")}
@@ -211,48 +335,22 @@ export default function ReportsPage() {
         <ErrorBanner message={error} onRetry={() => setReloadKey((k) => k + 1)} />
       )}
 
-      {/* Summary Cards — 2 col on mobile, 3 on sm+ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-fade-in">
-        <div className="glass-card p-4 sm:p-5">
-          <div className="flex items-center gap-2 sm:gap-3 mb-2">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-income/10 flex items-center justify-center shrink-0">
-              <TrendingUp size={16} className="text-income" />
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted">Total Pemasukan</p>
-          </div>
-          <p className="text-base sm:text-xl font-bold text-income tabular-nums">
-            {loading ? "..." : formatRupiah(totalIncome)}
-          </p>
-        </div>
-        <div className="glass-card p-4 sm:p-5">
-          <div className="flex items-center gap-2 sm:gap-3 mb-2">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-expense/10 flex items-center justify-center shrink-0">
-              <TrendingDown size={16} className="text-expense" />
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted">Total Pengeluaran</p>
-          </div>
-          <p className="text-base sm:text-xl font-bold text-expense tabular-nums">
-            {loading ? "..." : formatRupiah(totalExpense)}
-          </p>
-        </div>
-        <div className="glass-card p-4 sm:p-5 col-span-2 sm:col-span-1">
-          <div className="flex items-center gap-2 sm:gap-3 mb-2">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0">
-              <PiggyBank size={16} className="text-accent-blue" />
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted">Tabungan Bersih</p>
-          </div>
-          <p
-            className={`text-base sm:text-xl font-bold tabular-nums ${
-              netSavings >= 0 ? "text-income" : "text-expense"
-            }`}
-          >
-            {loading ? "..." : formatRupiah(netSavings)}
-          </p>
-        </div>
-      </div>
+      {/* Ringkasan + perbandingan periode (digabung jadi satu) */}
+      <PeriodComparison
+        transactions={transactions}
+        prevTransactions={prevTransactions}
+        comparedTo={comparedTo}
+        loading={loading}
+      />
 
       <FinancialInsights transactions={transactions} loading={loading} />
+
+      {/* Statistik ringkas */}
+      <QuickStats
+        transactions={transactions}
+        periodDays={periodDays}
+        loading={loading}
+      />
 
       {/* Charts */}
       {loading ? (
@@ -268,12 +366,17 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
+          <TopTransactions transactions={transactions} />
+
           <IncomeExpenseChart data={trendData} granularity={granularity} />
 
           {/* Tren butuh minimal 2 titik data agar bermakna */}
           {trendData.length >= 2 && (
             <MonthlyTrendChart data={trendData} granularity={granularity} />
           )}
+
+          {/* Pola pengeluaran per hari dalam seminggu */}
+          <DayAnalysis transactions={transactions} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <CategoryPieChart

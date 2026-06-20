@@ -61,12 +61,22 @@ export interface MonthlyReport {
   expense: number;
 }
 
+/** Rincian satu sumber dalam sebuah kategori. */
+export interface CategorySourceSlice {
+  name: string;
+  icon: string;
+  color: string;
+  total: number;
+}
+
 export interface CategoryReport {
   name: string;
   icon: string;
   color: string;
   total: number;
   percentage: number;
+  /** Pecahan nominal kategori ini per sumber dana (sudah terurut desc). */
+  sources: CategorySourceSlice[];
 }
 
 export type TransactionFormData = {
