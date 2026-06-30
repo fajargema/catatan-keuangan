@@ -17,3 +17,11 @@ export function getCached<T>(key: string): T | undefined {
 export function setCached<T>(key: string, data: T): void {
   cache.set(key, data);
 }
+
+/**
+ * Kosongkan seluruh cache. Dipanggil saat logout agar data user lama
+ * tidak tertinggal di memori selama umur tab.
+ */
+export function clearCache(): void {
+  cache.clear();
+}

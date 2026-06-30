@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { 
-  Plus, 
-  Trash2, 
+import {
+  Plus,
+  Trash2,
   Pencil,
-  TrendingUp as ProfitIcon, 
-  FileText 
+  TrendingUp as ProfitIcon,
+  FileText,
+  Layers,
+  Crown,
+  Wallet as WalletIcon,
 } from "lucide-react";
 import { useInvestments } from "@/hooks/useInvestments";
 import { useHydrated } from "@/hooks/useHydrated";
@@ -14,6 +17,7 @@ import { formatRupiah } from "@/lib/utils";
 import type { Investment, InvestmentType } from "@/lib/types";
 import InvestmentForm from "@/components/investments/InvestmentForm";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const TYPE_LABELS: Record<InvestmentType, string> = {
@@ -46,6 +50,7 @@ const TYPE_COLORS: Record<InvestmentType, string> = {
 export default function InvestmentsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Investment | null>(null);
+  const [deletingAsset, setDeletingAsset] = useState<Investment | null>(null);
   // Chart hanya dirender setelah hydration (recharts mengukur DOM)
   const isMounted = useHydrated();
 
@@ -60,7 +65,16 @@ export default function InvestmentsPage() {
     refetch,
   } = useInvestments();
 
-  // Pie chart data
+  // Urutkan aset dari nilai terbesar → hierarki visual yang jelas
+  const sortedInvestments = useMemo(
+    () =>
+      [...investments].sort(
+        (a, b) => Number(b.current_val || 0) - Number(a.current_val || 0)
+      ),
+    [investments]
+  );
+
+  // Pie chart data — agregasi per jenis instrumen
   const chartData = useMemo(() => {
     const grouped: Record<string, { value: number; color: string }> = {};
     investments.forEach((inv) => {
@@ -74,12 +88,18 @@ export default function InvestmentsPage() {
       }
     });
 
-    return Object.entries(grouped).map(([name, data]) => ({
-      name,
-      value: data.value,
-      color: data.color,
-    }));
+    return Object.entries(grouped)
+      .map(([name, data]) => ({ name, value: data.value, color: data.color }))
+      .sort((a, b) => b.value - a.value);
   }, [investments]);
+
+  // Statistik turunan untuk kartu ringkasan
+  const typesCount = chartData.length;
+  const largest = sortedInvestments[0];
+  const largestPct =
+    largest && totalCurrent > 0
+      ? (Number(largest.current_val || 0) / totalCurrent) * 100
+      : 0;
 
   const handleAddInvestmentAsset = async (data: {
     name: string;
@@ -122,24 +142,91 @@ export default function InvestmentsPage() {
       {/* Error dari fetch data */}
       {error && <ErrorBanner message={error} onRetry={refetch} />}
 
-      {/* Summary Cards */}
+      {/* ── Hero + Ringkasan ─────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
-        <div className="glass-card p-5 md:col-span-2 relative overflow-hidden group">
-          {/* Subtle background glow */}
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-accent/10 rounded-full blur-3xl group-hover:bg-accent/15 transition-colors duration-500" />
-          <p className="text-xs text-muted mb-1 font-medium">Total Nilai Investasi</p>
-          <p className="text-3xl font-bold text-foreground tracking-tight">
-            {loading ? "Rp --" : formatRupiah(totalCurrent)}
-          </p>
-          <p className="text-[10px] text-muted mt-2">Valuasi kumulatif seluruh instrumen aktif saat ini</p>
+        {/* Hero — gradient indigo/cyan, beda nuansa dari saldo dompet */}
+        <div
+          className="md:col-span-2 relative overflow-hidden rounded-[22px] p-6 sm:p-7"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(6,182,212,0.12) 45%, rgba(16,185,129,0.14) 100%)",
+            border: "1px solid rgba(99,102,241,0.22)",
+          }}
+        >
+          {/* Glow orbs */}
+          <div className="pointer-events-none absolute -right-12 -top-12 w-48 h-48 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%)" }} />
+          <div className="pointer-events-none absolute -bottom-16 left-1/4 w-44 h-44 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(6,182,212,0.18) 0%, transparent 70%)" }} />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="icon-badge icon-badge-sm" style={{ background: "rgba(99,102,241,0.18)" }}>
+                <ProfitIcon size={16} style={{ color: "var(--accent-indigo)" }} />
+              </span>
+              <p className="text-xs text-muted font-medium uppercase tracking-wider">
+                Total Nilai Investasi
+              </p>
+            </div>
+
+            <p className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight tabular-nums">
+              {loading ? "Rp --" : formatRupiah(totalCurrent)}
+            </p>
+            <p className="text-[11px] text-muted mt-1.5">
+              Valuasi kumulatif seluruh instrumen aktif saat ini
+            </p>
+
+            {/* Mini-stats di dalam hero */}
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <div className="rounded-xl px-3.5 py-2.5 bg-foreground/3 border border-card-border backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-wide font-medium mb-0.5">
+                  <WalletIcon size={11} /> Instrumen
+                </div>
+                <p className="text-lg font-bold text-foreground tabular-nums">
+                  {loading ? "--" : investments.length}
+                </p>
+              </div>
+              <div className="rounded-xl px-3.5 py-2.5 bg-foreground/3 border border-card-border backdrop-blur-sm">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-wide font-medium mb-0.5">
+                  <Layers size={11} /> Jenis Aset
+                </div>
+                <p className="text-lg font-bold text-foreground tabular-nums">
+                  {loading ? "--" : typesCount}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="glass-card p-5">
-          <p className="text-xs text-muted mb-1 font-medium">Jumlah Instrumen</p>
-          <p className="text-3xl font-bold text-foreground">
-            {loading ? "--" : `${investments.length}`}
-          </p>
-          <p className="text-[10px] text-muted mt-2">Total kategori aset yang terdaftar</p>
+        {/* Aset Terbesar */}
+        <div className="glass-card p-5 flex flex-col justify-between min-h-[150px]">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-wide font-medium">
+            <Crown size={12} style={{ color: "#f59e0b" }} /> Aset Terbesar
+          </div>
+          {loading ? (
+            <div className="space-y-2">
+              <div className="skeleton h-5 w-32" />
+              <div className="skeleton h-4 w-24" />
+            </div>
+          ) : largest ? (
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+                  style={{ backgroundColor: `${TYPE_COLORS[largest.type]}15` }}
+                >
+                  {TYPE_ICONS[largest.type]}
+                </span>
+                <p className="text-sm font-semibold text-foreground truncate">{largest.name}</p>
+              </div>
+              <p className="text-xl font-bold text-foreground tabular-nums">
+                {formatRupiah(Number(largest.current_val || 0))}
+              </p>
+              <p className="text-[11px] text-muted mt-0.5">
+                {largestPct.toFixed(0)}% dari total portofolio
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">Belum ada aset</p>
+          )}
         </div>
       </div>
 
@@ -181,57 +268,77 @@ export default function InvestmentsPage() {
             </div>
           ) : (
             <div className="glass-card divide-y divide-card-border overflow-hidden">
-              {investments.map((inv) => {
+              {sortedInvestments.map((inv) => {
                 const assetColor = TYPE_COLORS[inv.type];
-                
+                const val = Number(inv.current_val || 0);
+                const pct = totalCurrent > 0 ? (val / totalCurrent) * 100 : 0;
+
                 return (
-                  <div key={inv.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-card-hover/20 transition-colors group">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
-                        style={{ backgroundColor: `${assetColor}15` }}
-                      >
-                        {TYPE_ICONS[inv.type]}
+                  <div
+                    key={inv.id}
+                    className="relative p-4 hover:bg-card-hover/20 transition-colors group"
+                  >
+                    {/* Aksen warna jenis di tepi kiri */}
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-9 rounded-r-full opacity-70"
+                      style={{ background: assetColor }}
+                    />
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
+                          style={{ backgroundColor: `${assetColor}15` }}
+                        >
+                          {TYPE_ICONS[inv.type]}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate text-foreground">{inv.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted">
+                            <span
+                              className="font-medium text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md"
+                              style={{ backgroundColor: `${assetColor}14`, color: assetColor }}
+                            >
+                              {TYPE_LABELS[inv.type]}
+                            </span>
+                            {inv.notes && <span className="truncate max-w-[120px] sm:max-w-none">{inv.notes}</span>}
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate text-foreground">{inv.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted">
-                          <span className="font-medium text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-card-border/50 border border-card-border">
-                            {TYPE_LABELS[inv.type]}
-                          </span>
-                          {inv.notes && <span className="truncate max-w-[120px] sm:max-w-none">{inv.notes}</span>}
+
+                      <div className="flex items-center justify-between sm:justify-end gap-6 pl-13 sm:pl-0">
+                        {/* Current Value + porsi portofolio */}
+                        <div className="text-left sm:text-right">
+                          <p className="text-sm font-bold text-foreground tabular-nums">{formatRupiah(val)}</p>
+                          <p className="text-[10px] text-muted mt-0.5">{pct.toFixed(1)}% portofolio</p>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingAsset(inv)}
+                            className="p-2 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors cursor-pointer"
+                            title="Ubah Nilai / Detail Aset"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            onClick={() => setDeletingAsset(inv)}
+                            className="p-2 rounded-lg hover:bg-expense/10 text-muted hover:text-expense transition-colors cursor-pointer"
+                            title="Hapus Aset"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-6 pl-13 sm:pl-0">
-                      {/* Current Value */}
-                      <div className="text-left sm:text-right">
-                        <p className="text-sm font-bold text-foreground">{formatRupiah(inv.current_val)}</p>
-                        <p className="text-[10px] text-muted mt-0.5">Nilai Terakhir</p>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => setEditingAsset(inv)}
-                          className="p-2 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors cursor-pointer"
-                          title="Ubah Nilai / Detail Aset"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Hapus aset "${inv.name}"? Data aset ini akan terhapus permanen.`)) {
-                              deleteInvestment(inv.id);
-                            }
-                          }}
-                          className="p-2 rounded-lg hover:bg-expense/10 text-muted hover:text-expense transition-colors cursor-pointer"
-                          title="Hapus Aset"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
+                    {/* Bar alokasi terhadap total portofolio */}
+                    <div className="mt-3 h-1.5 w-full rounded-full bg-card-border/50 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${Math.max(pct, 2)}%`, background: assetColor }}
+                      />
                     </div>
                   </div>
                 );
@@ -243,7 +350,7 @@ export default function InvestmentsPage() {
         {/* Right column: Chart Allocation */}
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">Alokasi Aset</h2>
-          
+
           <div className="glass-card p-5 flex flex-col items-center justify-center min-h-[295px]">
             {loading ? (
               <div className="skeleton w-36 h-36 rounded-full" />
@@ -254,7 +361,8 @@ export default function InvestmentsPage() {
               </div>
             ) : (
               <div className="w-full h-full min-h-[250px] flex flex-col justify-between">
-                <div className="w-full h-[180px]">
+                {/* Donut dengan label total di tengah */}
+                <div className="relative w-full h-[190px]">
                   {isMounted && (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <PieChart>
@@ -262,32 +370,42 @@ export default function InvestmentsPage() {
                           data={chartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={55}
-                          outerRadius={75}
+                          innerRadius={62}
+                          outerRadius={84}
                           paddingAngle={3}
                           dataKey="value"
+                          stroke="none"
                         >
                           {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip 
+                        <Tooltip
                           formatter={(val) => formatRupiah(Number(val))}
-                          contentStyle={{ background: "#0f172a", border: "1px solid rgba(148, 163, 184, 0.1)", borderRadius: "8px", color: "#f8fafc" }}
+                          contentStyle={{ background: "var(--modal-bg)", border: "1px solid var(--card-border, rgba(148,163,184,0.15))", borderRadius: "10px", color: "var(--text-primary)", fontSize: "12px" }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
+                  {/* Label tengah */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[10px] text-muted uppercase tracking-wide">Total</span>
+                    <span className="text-base font-bold text-foreground tabular-nums">
+                      {formatRupiah(totalCurrent)}
+                    </span>
+                    <span className="text-[10px] text-muted">{typesCount} jenis</span>
+                  </div>
                 </div>
-                
-                {/* Custom Legend */}
-                <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+
+                {/* Legend lengkap — warna · nama · nominal · % */}
+                <div className="space-y-2 mt-4">
                   {chartData.map((item, index) => (
-                    <div key={index} className="flex items-center gap-1.5 min-w-0">
+                    <div key={index} className="flex items-center gap-2 text-xs">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                      <span className="text-muted truncate min-w-0">{item.name}</span>
-                      <span className="font-semibold text-foreground shrink-0">
-                        {((item.value / totalCurrent) * 100).toFixed(0)}%
+                      <span className="text-muted truncate min-w-0 flex-1">{item.name}</span>
+                      <span className="text-foreground tabular-nums hidden sm:inline">{formatRupiah(item.value)}</span>
+                      <span className="font-semibold text-foreground shrink-0 tabular-nums w-9 text-right">
+                        {totalCurrent > 0 ? ((item.value / totalCurrent) * 100).toFixed(0) : 0}%
                       </span>
                     </div>
                   ))}
@@ -313,6 +431,20 @@ export default function InvestmentsPage() {
           investment={editingAsset}
           onSubmit={handleUpdateInvestmentAsset}
           onClose={() => setEditingAsset(null)}
+        />
+      )}
+
+      {/* Konfirmasi hapus aset */}
+      {deletingAsset && (
+        <ConfirmDialog
+          title="Hapus Aset Investasi?"
+          message={`Aset "${deletingAsset.name}" akan terhapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+          confirmLabel="Ya, Hapus"
+          onConfirm={() => {
+            deleteInvestment(deletingAsset.id);
+            setDeletingAsset(null);
+          }}
+          onCancel={() => setDeletingAsset(null)}
         />
       )}
     </div>

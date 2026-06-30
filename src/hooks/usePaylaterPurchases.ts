@@ -103,28 +103,22 @@ export function usePaylaterPurchases() {
   const addPurchase = async (data: PaylaterPurchaseFormData) => {
     if (!userId) throw new Error("Tidak terautentikasi");
 
-    const { data: purchase, error: err } = await supabase
-      .from("paylater_purchases")
-      .insert([{ ...data, user_id: userId }])
-      .select("id")
-      .single();
-    if (err) throw err;
-
     const amounts = splitInstallmentAmounts(data.amount, data.tenor);
     const dueDates = computeInstallmentDueDates(data.purchase_date, data.tenor);
-    const rows = amounts.map((amount, i) => ({
-      purchase_id: purchase.id,
-      installment_no: i + 1,
-      amount,
-      due_date: dueDates[i],
-      paid: false,
-      user_id: userId,
-    }));
 
-    const { error: err2 } = await supabase
-      .from("paylater_installments")
-      .insert(rows);
-    if (err2) throw err2;
+    // Purchase + cicilan dibuat atomik di DB (RPC) agar tidak ada
+    // "purchase yatim" bila insert cicilan gagal di tengah jalan.
+    const { error: err } = await supabase.rpc("create_paylater_purchase", {
+      p_account_id: data.account_id,
+      p_description: data.description,
+      p_amount: data.amount,
+      p_tenor: data.tenor,
+      p_purchase_date: data.purchase_date,
+      p_category_id: data.category_id,
+      p_amounts: amounts,
+      p_due_dates: dueDates,
+    });
+    if (err) throw err;
 
     await fetchPurchases();
   };

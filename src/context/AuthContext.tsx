@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
+import { clearCache } from "@/lib/queryCache";
 import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -47,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       await supabase.auth.signOut();
+      // Bersihkan cache in-memory agar data user lama tidak tertinggal di tab
+      clearCache();
       setUser(null);
     } catch (err) {
       console.error("Gagal melakukan signout:", err);
