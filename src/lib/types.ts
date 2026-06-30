@@ -103,9 +103,35 @@ export interface Investment {
   name: string;
   type: InvestmentType;
   current_val: number;
+  /** Total modal yang diinvestasikan (untuk hitung untung/rugi). */
+  cost_basis: number;
+  /** Jumlah unit/lot yang dimiliki (opsional, bisa pecahan). */
+  units: number | null;
+  /** Harga rata-rata beli per unit (opsional). */
+  avg_price: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+  user_id?: string;
+}
+
+export type InvestmentFormData = {
+  name: string;
+  type: InvestmentType;
+  current_val: number;
+  cost_basis: number;
+  units: number | null;
+  avg_price: number | null;
+  notes?: string;
+};
+
+/** Snapshot total nilai & modal portofolio untuk satu periode "YYYY-MM". */
+export interface InvestmentSnapshot {
+  id: string;
+  period: string;
+  total_value: number;
+  total_cost: number;
+  captured_at: string;
   user_id?: string;
 }
 

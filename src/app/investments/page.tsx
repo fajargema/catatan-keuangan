@@ -6,16 +6,19 @@ import {
   Trash2,
   Pencil,
   TrendingUp as ProfitIcon,
+  TrendingDown,
   FileText,
   Layers,
   Crown,
   Wallet as WalletIcon,
 } from "lucide-react";
 import { useInvestments } from "@/hooks/useInvestments";
+import { useInvestmentSnapshots, useAutoSnapshot } from "@/hooks/useInvestmentSnapshots";
 import { useHydrated } from "@/hooks/useHydrated";
 import { formatRupiah } from "@/lib/utils";
-import type { Investment, InvestmentType } from "@/lib/types";
+import type { Investment, InvestmentType, InvestmentFormData } from "@/lib/types";
 import InvestmentForm from "@/components/investments/InvestmentForm";
+import PortfolioGrowthChart from "@/components/investments/PortfolioGrowthChart";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -59,11 +62,21 @@ export default function InvestmentsPage() {
     loading,
     error,
     totalCurrent,
+    totalCost,
     addInvestment,
     updateInvestment,
     deleteInvestment,
     refetch,
   } = useInvestments();
+
+  const { snapshots, captureSnapshot } = useInvestmentSnapshots();
+  // Catat snapshot bulan berjalan otomatis sekali data siap (idempotent)
+  useAutoSnapshot(!loading, totalCurrent, totalCost, captureSnapshot);
+
+  // Untung/rugi total portofolio
+  const totalGain = totalCurrent - totalCost;
+  const totalGainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+  const hasCostData = totalCost > 0;
 
   // Urutkan aset dari nilai terbesar → hierarki visual yang jelas
   const sortedInvestments = useMemo(
@@ -101,21 +114,11 @@ export default function InvestmentsPage() {
       ? (Number(largest.current_val || 0) / totalCurrent) * 100
       : 0;
 
-  const handleAddInvestmentAsset = async (data: {
-    name: string;
-    type: InvestmentType;
-    current_val: number;
-    notes?: string;
-  }) => {
+  const handleAddInvestmentAsset = async (data: InvestmentFormData) => {
     await addInvestment(data);
   };
 
-  const handleUpdateInvestmentAsset = async (data: {
-    name: string;
-    type: InvestmentType;
-    current_val: number;
-    notes?: string;
-  }) => {
+  const handleUpdateInvestmentAsset = async (data: InvestmentFormData) => {
     if (editingAsset) {
       await updateInvestment(editingAsset.id, data);
     }
@@ -142,11 +145,11 @@ export default function InvestmentsPage() {
       {/* Error dari fetch data */}
       {error && <ErrorBanner message={error} onRetry={refetch} />}
 
-      {/* ── Hero + Ringkasan ─────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
+      {/* ── Hero ─────────────────────────────────────── */}
+      <div className="animate-fade-in">
         {/* Hero — gradient indigo/cyan, beda nuansa dari saldo dompet */}
         <div
-          className="md:col-span-2 relative overflow-hidden rounded-[22px] p-6 sm:p-7"
+          className="relative overflow-hidden rounded-[22px] p-6 sm:p-7"
           style={{
             background:
               "linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(6,182,212,0.12) 45%, rgba(16,185,129,0.14) 100%)",
@@ -170,9 +173,33 @@ export default function InvestmentsPage() {
             <p className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight tabular-nums">
               {loading ? "Rp --" : formatRupiah(totalCurrent)}
             </p>
-            <p className="text-[11px] text-muted mt-1.5">
-              Valuasi kumulatif seluruh instrumen aktif saat ini
-            </p>
+
+            {/* Untung/rugi terhadap modal */}
+            {!loading && hasCostData ? (
+              <div className="flex items-center gap-1.5 mt-2">
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold tabular-nums"
+                  style={{
+                    background: totalGain >= 0 ? "var(--color-income-dim)" : "var(--color-expense-dim)",
+                    color: totalGain >= 0 ? "var(--color-income)" : "var(--color-expense)",
+                  }}
+                >
+                  {totalGain >= 0 ? <ProfitIcon size={12} /> : <TrendingDown size={12} />}
+                  {totalGain >= 0 ? "+" : ""}{formatRupiah(totalGain)}
+                </span>
+                <span
+                  className="text-xs font-semibold tabular-nums"
+                  style={{ color: totalGain >= 0 ? "var(--color-income)" : "var(--color-expense)" }}
+                >
+                  ({totalGain >= 0 ? "+" : ""}{totalGainPct.toFixed(1)}%)
+                </span>
+                <span className="text-[11px] text-muted">dari modal {formatRupiah(totalCost)}</span>
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted mt-1.5">
+                Valuasi kumulatif seluruh instrumen aktif saat ini
+              </p>
+            )}
 
             {/* Mini-stats di dalam hero */}
             <div className="grid grid-cols-2 gap-3 mt-5">
@@ -194,39 +221,6 @@ export default function InvestmentsPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Aset Terbesar */}
-        <div className="glass-card p-5 flex flex-col justify-between min-h-[150px]">
-          <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-wide font-medium">
-            <Crown size={12} style={{ color: "#f59e0b" }} /> Aset Terbesar
-          </div>
-          {loading ? (
-            <div className="space-y-2">
-              <div className="skeleton h-5 w-32" />
-              <div className="skeleton h-4 w-24" />
-            </div>
-          ) : largest ? (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
-                  style={{ backgroundColor: `${TYPE_COLORS[largest.type]}15` }}
-                >
-                  {TYPE_ICONS[largest.type]}
-                </span>
-                <p className="text-sm font-semibold text-foreground truncate">{largest.name}</p>
-              </div>
-              <p className="text-xl font-bold text-foreground tabular-nums">
-                {formatRupiah(Number(largest.current_val || 0))}
-              </p>
-              <p className="text-[11px] text-muted mt-0.5">
-                {largestPct.toFixed(0)}% dari total portofolio
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm text-muted">Belum ada aset</p>
-          )}
         </div>
       </div>
 
@@ -271,6 +265,10 @@ export default function InvestmentsPage() {
               {sortedInvestments.map((inv) => {
                 const assetColor = TYPE_COLORS[inv.type];
                 const val = Number(inv.current_val || 0);
+                const cost = Number(inv.cost_basis || 0);
+                const gain = val - cost;
+                const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
+                const hasCost = cost > 0;
                 const pct = totalCurrent > 0 ? (val / totalCurrent) * 100 : 0;
 
                 return (
@@ -301,16 +299,30 @@ export default function InvestmentsPage() {
                             >
                               {TYPE_LABELS[inv.type]}
                             </span>
+                            {inv.units != null && (
+                              <span className="tabular-nums">
+                                {inv.units.toLocaleString("id-ID")} unit
+                              </span>
+                            )}
                             {inv.notes && <span className="truncate max-w-[120px] sm:max-w-none">{inv.notes}</span>}
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between sm:justify-end gap-6 pl-13 sm:pl-0">
-                        {/* Current Value + porsi portofolio */}
+                        {/* Current Value + untung/rugi / porsi portofolio */}
                         <div className="text-left sm:text-right">
                           <p className="text-sm font-bold text-foreground tabular-nums">{formatRupiah(val)}</p>
-                          <p className="text-[10px] text-muted mt-0.5">{pct.toFixed(1)}% portofolio</p>
+                          {hasCost ? (
+                            <p
+                              className="text-[11px] font-semibold mt-0.5 tabular-nums"
+                              style={{ color: gain >= 0 ? "var(--color-income)" : "var(--color-expense)" }}
+                            >
+                              {gain >= 0 ? "+" : ""}{formatRupiah(gain)} ({gain >= 0 ? "+" : ""}{gainPct.toFixed(1)}%)
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-muted mt-0.5">{pct.toFixed(1)}% portofolio</p>
+                          )}
                         </div>
 
                         {/* Action buttons */}
@@ -413,8 +425,46 @@ export default function InvestmentsPage() {
               </div>
             )}
           </div>
+
+          {/* Aset Terbesar — di bawah alokasi */}
+          <div className="glass-card p-5">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted uppercase tracking-wide font-medium mb-3">
+              <Crown size={12} style={{ color: "#f59e0b" }} /> Aset Terbesar
+            </div>
+            {loading ? (
+              <div className="space-y-2">
+                <div className="skeleton h-5 w-32" />
+                <div className="skeleton h-4 w-24" />
+              </div>
+            ) : largest ? (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+                    style={{ backgroundColor: `${TYPE_COLORS[largest.type]}15` }}
+                  >
+                    {TYPE_ICONS[largest.type]}
+                  </span>
+                  <p className="text-sm font-semibold text-foreground truncate">{largest.name}</p>
+                </div>
+                <p className="text-xl font-bold text-foreground tabular-nums">
+                  {formatRupiah(Number(largest.current_val || 0))}
+                </p>
+                <p className="text-[11px] text-muted mt-0.5">
+                  {largestPct.toFixed(0)}% dari total portofolio
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">Belum ada aset</p>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Grafik pertumbuhan portofolio — butuh ≥2 bulan tercatat */}
+      {isMounted && !loading && snapshots.length >= 2 && (
+        <PortfolioGrowthChart snapshots={snapshots} />
+      )}
 
       {/* Modal Tambah Aset */}
       {showAddForm && (

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { getCached, setCached } from "@/lib/queryCache";
-import type { Investment, InvestmentType } from "@/lib/types";
+import type { Investment, InvestmentFormData } from "@/lib/types";
 
 export function useInvestments() {
   const { userId } = useAuth();
@@ -86,12 +86,7 @@ export function useInvestments() {
   }, [fetchInvestmentsData, userId]);
 
   // Mutations
-  const addInvestment = async (data: { 
-    name: string; 
-    type: InvestmentType; 
-    current_val: number; 
-    notes?: string; 
-  }) => {
+  const addInvestment = async (data: InvestmentFormData) => {
     if (!userId) return;
 
     skipNextRealtimeRef.current = true;
@@ -104,15 +99,7 @@ export function useInvestments() {
     return inserted?.[0] as Investment;
   };
 
-  const updateInvestment = async (
-    id: string,
-    data: { 
-      name: string; 
-      type: InvestmentType; 
-      current_val: number; 
-      notes?: string; 
-    }
-  ) => {
+  const updateInvestment = async (id: string, data: InvestmentFormData) => {
     if (!userId) return;
 
     // Optimistic update (sinkron ke cache)
@@ -160,12 +147,14 @@ export function useInvestments() {
 
   // Calculations
   const totalCurrent = investments.reduce((sum, inv) => sum + Number(inv.current_val || 0), 0);
+  const totalCost = investments.reduce((sum, inv) => sum + Number(inv.cost_basis || 0), 0);
 
   return {
     investments,
     loading,
     error,
     totalCurrent,
+    totalCost,
     addInvestment,
     updateInvestment,
     deleteInvestment,

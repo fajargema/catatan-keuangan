@@ -4,12 +4,14 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Globe } from "lucide-react";
 import BalanceCard from "@/components/dashboard/BalanceCard";
+import NetWorthCard from "@/components/dashboard/NetWorthCard";
 import WalletSummary from "@/components/dashboard/WalletSummary";
 import SourceBreakdown from "@/components/dashboard/SourceBreakdown";
 import RecentTransactions from "@/components/dashboard/RecentTransactions";
 import TransactionForm from "@/components/transactions/TransactionForm";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { useWallets } from "@/hooks/useWallets";
+import { useInvestments } from "@/hooks/useInvestments";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
 import { useSources } from "@/hooks/useSources";
@@ -36,6 +38,7 @@ export default function DashboardPage() {
   } = useWallets();
   const { categories } = useCategories();
   const { sources } = useSources();
+  const { totalCurrent: investmentValue, loading: investmentsLoading } = useInvestments();
 
   const activeSource = sources.find((s) => s.id === activeSourceId);
 
@@ -99,6 +102,13 @@ export default function DashboardPage() {
           }}
         />
       )}
+
+      {/* Kekayaan bersih — saldo dompet + nilai investasi (total keseluruhan) */}
+      <NetWorthCard
+        walletBalance={totalBalance}
+        investmentValue={investmentValue}
+        loading={walletsLoading || investmentsLoading}
+      />
 
       {/* Source Filter Tabs — scrollable on mobile */}
       {!walletsLoading && sources.length > 0 && (
